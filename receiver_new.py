@@ -7,50 +7,51 @@ import cv2
 from ultralytics import YOLO
 import sys
 
-# === CONFIG ===
-STREAM_URL = "udp://192.168.137.208:8000"  # Listen on port 8000
-MODEL_PATH = "dataPath/train/weights/best.pt"  # Model directory path
 
-# Load YOLO model
-try:
-    model = YOLO(MODEL_PATH)
-    print(f"Loaded model: {MODEL_PATH}")
-except Exception as e:
-    print(f"!! Failed to load model: {e}")
-    sys.exit(1)
+class Receiver:
+    def __init__(self):
+        # === CONFIG ===
+        self.STREAM_URL = "udp://192.168.137.208:8000"  # Listen on port 8000
+        self.MODEL_PATH = "dataPath/train/weights/best.pt"  # Model directory path
+        self.model = None
+        self.cap = None
 
-# Open video stream
-cap = cv2.VideoCapture(STREAM_URL, cv2.CAP_FFMPEG)
-cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Reduced buffer for lower latency
+    def initialize(self):
+        # Load YOLO model
+        try:
+            self.model = YOLO(self.MODEL_PATH)
+            print(f"Loaded model: {self.MODEL_PATH}")
+        except Exception as e:
+            print(f"!! Failed to load model: {e}")
+            return False
 
-if not cap.isOpened():
-    print("!! Could not open UDP stream. Is the Pi streaming?")
-    sys.exit(1)
+        # Open video stream
+        self.cap = cv2.VideoCapture(self.STREAM_URL, cv2.CAP_FFMPEG)
+        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Reduced buffer for lower latency
 
-print("Receiving stream... Press 'q' to quit.")
+        if not self.cap.isOpened():
+            print("!! Could not open UDP stream. Is the Pi streaming?")
+            return False
 
-try:
-    while True:
-        ret, frame = cap.read()
+        print("Receiving stream... Press 'q' to quit.")
+        return True # successfully initialized
+
+    def get_frame(self):
+        ret, frame = self.cap.read()
         if not ret:
             print("!!! No frame received. Stream may have ended.")
-            break
+            return None, 0
 
         # Run YOLO inference
-        results = model(frame, verbose=False, device='cpu')
+        results = self.model(frame, verbose=False, device='cpu')
         annotated_frame = results[0].plot()  # Draw boxes & labels
+        weed_count = len(results[0].boxes)
 
-        # Display result
-        cv2.imshow("Plant Detection", annotated_frame)
+        return annotated_frame, weed_count
 
-        # Exit on 'q'
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-except KeyboardInterrupt:
-    pass
-
-# Cleanup
-cap.release()
-cv2.destroyAllWindows()
-print("Stopped.")
+    def stop(self):
+        # Cleanup
+        if self.cap:
+            self.cap.release()
+        cv2.destroyAllWindows()
+        print("Stopped.")
