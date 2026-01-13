@@ -29,6 +29,6 @@ Built for edge AI prototyping, agriculture monitoring, or educational computer v
 ---
 
 ## Tips for Best Performance
-Use 640×480 @ 15 FPS, 1.5 Mbps for stable Wi-Fi streaming on Pi 3
+Use 640×480 @ 15 FPS, 2 Mbps for stable Wi-Fi streaming on Pi 3
 Ensure good lighting — YOLO works better than high bitrate!
 Keep both devices close to the Wi-Fi router (Pi 3 uses 2.4 GHz only)
