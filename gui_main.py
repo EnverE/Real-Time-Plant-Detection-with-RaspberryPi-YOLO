@@ -18,9 +18,6 @@ class WeedDetectionGUI:
         self.backend = Receiver()
         self.is_running = False
 
-        #zort
-        self.total_counter = 0
-
         # GUI LAYOUT
         # 1. Video Area
         self.video_label = tk.Label(root, text="[Video Feed Offline]", bg="black", fg="white")
@@ -38,8 +35,9 @@ class WeedDetectionGUI:
         self.lbl_count = tk.Label(self.stats_frame, text="Weeds in Frame: 0", font=("Arial", 14), bg="#f0f0f0")
         self.lbl_count.pack(pady=20)
 
-        self.lbl_total = tk.Label(self.stats_frame, text="Total Detections: 0", font=("Arial", 12), fg="gray", bg="#f0f0f0")
-        self.lbl_total.pack(pady=5)
+        #self.lbl_total = tk.Label(self.stats_frame, text="Total Detections: 0", font=("Arial", 12), fg="gray", bg="#f0f0f0")
+        #self.lbl_total.pack(pady=5)
+        #self.total_counter = 0
 
         # 3. Buttons
         self.btn_start = tk.Button(root, text="Start System", bg="green", fg="white", font=("Arial", 14), command=self.start_system)
@@ -74,12 +72,11 @@ class WeedDetectionGUI:
     def video_loop(self):
         while self.is_running:
             # Getting footage
-            frame, count, total_counter = self.backend.get_frame()
-            self.total_counter = total_counter
+            frame, count = self.backend.get_frame()
 
             if frame is not None:
-                # Update Stats
-
+                # Update Stats (DOES NOT WORK AS INTENDED - need a fix)
+                #self.total_counter += count
 
                 # Update GUI Images
                 # Convert BGR (OpenCV) to RGB (Tkinter)
@@ -97,7 +94,7 @@ class WeedDetectionGUI:
         self.video_label.imgtk = imgtk
         self.video_label.configure(image=imgtk)
         self.lbl_count.config(text=f"Weeds in Frame: {count}")
-        self.lbl_total.config(text=f"Total Detections: {self.total_counter}")
+        #self.lbl_total.config(text=f"Total Detections: {self.total_counter}")
 
 
 if __name__ == "__main__":
