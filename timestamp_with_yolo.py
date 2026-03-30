@@ -3,106 +3,153 @@ import time
 import socket
 import pickle
 import struct
+import threading
 import numpy as np
-from ultralytics import YOLO  # <-- Added required import
+from ultralytics import YOLO
 
-# --- Configuration ---
-HOST_IP = '0.0.0.0'  # Listen on all adapters
-PORT = 8080  # Make sure this matches your Pi script!
-MODEL_PATH = "dataPath/train/weights/best3.pt"  # Your model path
 
-# --- 1. Load the YOLO Model ---
-# We do this FIRST, before anything else, so it doesn't slow down the video feed.
-print(f"Loading YOLO model from {MODEL_PATH}...")
-try:
-    model = YOLO(MODEL_PATH)
-    print("✅ Model loaded successfully!")
-except Exception as e:
-    print(f"❌ Failed to load model: {e}")
-    exit()  # Stop the script if the model isn't found
+class Receiver:
+    def __init__(self):
+        # --- Configuration ---
+        self.HOST_IP = '0.0.0.0'
+        self.PORT = 8080
+        self.MODEL_PATH = "dataPath/train/weights/best3.pt"
 
-# --- 2. Setup Network Server ---
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-# Prevent "Port in use" errors on crash
-server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # --- State Variables ---
+        self.model = None
+        self.server_socket = None
+        self.conn = None
+        self.is_running = False
 
-server_socket.bind((HOST_IP, PORT))
-server_socket.listen(1)
-print(f"\nListening for Pi on port {PORT}...")
+        # These are fetched by the GUI
+        self.latest_frame = None
+        self.weed_count = 0
 
-conn, addr = server_socket.accept()
-print(f"Connected to Pi at {addr}")
+        # Load the YOLO model right when the class is created
+        print(f"Loading YOLO model from {self.MODEL_PATH}...")
+        try:
+            self.model = YOLO(self.MODEL_PATH)
+            print("✅ Model loaded successfully!")
+        except Exception as e:
+            print(f"❌ Failed to load model: {e}")
 
-data = b""
-payload_size = struct.calcsize("Q")
+    def initialize(self):
+        """Starts the server and launches the background receiving thread."""
+        if self.model is None:
+            print("Cannot start: Model failed to load.")
+            return False
 
-try:
-    while True:
-        # 1. Receive the message size
-        while len(data) < payload_size:
-            packet = conn.recv(4 * 1024)
-            if not packet: break
-            data += packet
-        if not data: break
+        try:
+            # Setup Network Server
+            self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.server_socket.bind((self.HOST_IP, self.PORT))
+            self.server_socket.listen(1)
+            print(f"\nListening for Pi on port {self.PORT}...")
 
-        packed_msg_size = data[:payload_size]
-        data = data[payload_size:]
-        msg_size = struct.unpack("Q", packed_msg_size)[0]
+            self.is_running = True
 
-        # 2. Receive the actual payload (timestamp + frame)
-        while len(data) < msg_size:
-            data += conn.recv(4 * 1024)
+            # Start the network loop in a background thread so it doesn't freeze the GUI
+            threading.Thread(target=self._receive_loop, daemon=True).start()
+            return True
 
-        frame_data = data[:msg_size]
-        data = data[msg_size:]
+        except Exception as e:
+            print(f"Network initialization failed: {e}")
+            return False
 
-        # 3. Extract the timestamp and compressed frame
-        send_time, encoded_frame = pickle.loads(frame_data)
+    def _receive_loop(self):
+        """The background loop that handles TCP bytes, YOLO, and Latency math."""
+        try:
+            # Block and wait for the Pi to connect
+            self.conn, addr = self.server_socket.accept()
+            print(f"Connected to Pi at {addr}")
 
-        # 4. Decode the JPEG back into an OpenCV image
-        frame = cv2.imdecode(encoded_frame, cv2.IMREAD_COLOR)
+            data = b""
+            payload_size = struct.calcsize("Q")
 
-        # ==========================================
-        # MEASUREMENT 1: NETWORK DELAY
-        # ==========================================
-        receive_time = time.time()
-        network_delay_ms = (receive_time - send_time) * 1000
+            while self.is_running:
+                # 1. Receive the message size
+                while len(data) < payload_size:
+                    packet = self.conn.recv(4 * 1024)
+                    if not packet: break
+                    data += packet
+                if not data: break
 
-        results = model(frame)
+                packed_msg_size = data[:payload_size]
+                data = data[payload_size:]
+                msg_size = struct.unpack("Q", packed_msg_size)[0]
 
-        # Draw the bounding boxes onto the frame
-        frame = results[0].plot()
+                # 2. Receive the actual payload (timestamp + frame)
+                while len(data) < msg_size:
+                    data += self.conn.recv(4 * 1024)
 
-        # ==========================================
-        # MEASUREMENT 2: TOTAL DELAY
-        # ==========================================
-        finish_time = time.time()
-        total_delay_ms = (finish_time - send_time) * 1000
+                frame_data = data[:msg_size]
+                data = data[msg_size:]
 
-        # Calculate just the YOLO processing time
-        yolo_processing_ms = total_delay_ms - network_delay_ms
+                # 3. Extract the timestamp and compressed frame
+                send_time, encoded_frame = pickle.loads(frame_data)
 
-        # Print the stats to the terminal
-        print(f"Net: {network_delay_ms:.1f}ms | YOLO: {yolo_processing_ms:.1f}ms | Total: {total_delay_ms:.1f}ms")
+                # 4. Decode the JPEG back into an OpenCV image
+                frame = cv2.imdecode(encoded_frame, cv2.IMREAD_COLOR)
 
-        # Overlay the stats on the video feed
-        cv2.putText(frame, f"Net Delay: {network_delay_ms:.1f} ms", (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 165, 0), 2)
+                # ==========================================
+                # MEASUREMENT 1: NETWORK DELAY
+                # ==========================================
+                receive_time = time.time()
+                network_delay_ms = (receive_time - send_time) * 1000
 
-        cv2.putText(frame, f"YOLO Time: {yolo_processing_ms:.1f} ms", (10, 65),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
+                # ==========================================
+                # YOLO INFERENCE
+                # ==========================================
+                results = self.model(frame, verbose=False)  # verbose=False keeps terminal clean
 
-        cv2.putText(frame, f"Total Delay: {total_delay_ms:.1f} ms", (10, 100),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+                # Draw the bounding boxes onto the frame
+                frame = results[0].plot()
 
-        # Display the video
-        cv2.imshow("Drone Feed", frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+                # Count how many objects YOLO found
+                current_weed_count = len(results[0].boxes)
 
-except Exception as e:
-    print(f"Stream ended or error: {e}")
-finally:
-    conn.close()
-    server_socket.close()
-    cv2.destroyAllWindows()
+                # ==========================================
+                # MEASUREMENT 2: TOTAL DELAY
+                # ==========================================
+                finish_time = time.time()
+                total_delay_ms = (finish_time - send_time) * 1000
+                yolo_processing_ms = total_delay_ms - network_delay_ms
+
+                # Overlay the stats on the video feed
+                cv2.putText(frame, f"Net Delay: {network_delay_ms:.1f} ms", (10, 30),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 165, 0), 2)
+
+                cv2.putText(frame, f"YOLO Time: {yolo_processing_ms:.1f} ms", (10, 65),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
+
+                cv2.putText(frame, f"Total Delay: {total_delay_ms:.1f} ms", (10, 100),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+
+                # Save the processed frame and count for the GUI to fetch
+                self.latest_frame = frame
+                self.weed_count = current_weed_count
+
+        except Exception as e:
+            print(f"Stream ended or error: {e}")
+        finally:
+            self.stop()
+
+    def get_frame(self):
+        """Called constantly by the Tkinter GUI to update the screen."""
+        return self.latest_frame, self.weed_count
+
+    def stop(self):
+        """Safely shuts down the server and network thread."""
+        self.is_running = False
+        if self.conn:
+            try:
+                self.conn.close()
+            except:
+                pass
+        if self.server_socket:
+            try:
+                self.server_socket.close()
+            except:
+                pass
+        print("Receiver stopped.")

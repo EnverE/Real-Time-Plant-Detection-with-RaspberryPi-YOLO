@@ -6,7 +6,7 @@ import cv2
 import threading
 import time
 
-from receiver_new import Receiver
+from timestamp_with_yolo import Receiver
 
 
 class WeedDetectionGUI:
