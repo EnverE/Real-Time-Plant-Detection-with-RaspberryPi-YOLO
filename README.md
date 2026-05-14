@@ -84,6 +84,8 @@ Look for `Local Area Connection* 11` showing `192.168.137.1`
 
 ## Step 2 — Connect the Pi to the hosted network
 
+## Instead of doing these manually plug in the wifi adapter than run the start_spot.bat file as adminastrator which will do these automatically. 
+
 The Pi remembers the network after first setup. On first time only, SSH into the Pi using another network and run:
 
 ```bash
