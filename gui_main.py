@@ -5,6 +5,8 @@ from datetime import datetime
 import cv2
 import threading
 import time
+import socket
+import json
 
 from timestamp_with_yolo import Receiver
 from pi_connector import PiConnector
@@ -353,6 +355,12 @@ class WeedDetectionGUI:
 
     # ------------------------------------------------------------------ actions
     def start_system(self):
+        w_text = self.entry_width.get()
+        l_text = self.entry_length.get()
+        if not w_text or not l_text:
+            messagebox.showerror("Error", "Please set Area Width and Length in the Setup tab first!")
+            return
+
         self.lbl_status.config(text="Connecting to Pi...", fg="#F59E0B")
         self.btn_start.config(state="disabled")
         self.root.update()
@@ -382,6 +390,33 @@ class WeedDetectionGUI:
         self.lbl_topstatus.config(text="● Live", fg="#22C55E")
         threading.Thread(target=self.video_loop, daemon=True).start()
         self._tick_elapsed()
+        self.root.after(15000, self._send_takeoff_command)
+
+    def _send_takeoff_command(self):
+        if not self.is_running:
+            return
+        w_text = self.entry_width.get()
+        l_text = self.entry_length.get()
+
+        UDP_IP = "127.0.0.1"  # FOR SIMULATINO, Change this to the Pi's IP address later
+        UDP_PORT = 5005
+
+        try:
+            # Send the coordinates to the Pi
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            payload = {
+                "command": "START_SCAN",
+                "width": float(w_text),
+                "length": float(l_text)
+            }
+            message = json.dumps(payload)
+            sock.sendto(message.encode('utf-8'), (UDP_IP, UDP_PORT))
+            print("Flight coordinates sent to Pi! Drone taking off.")
+
+        except Exception as e:
+            messagebox.showerror("Network Error", f"Failed to send coordinates to Pi: {e}")
+            self.stop_system()  # Shut it down if the network fails
+
 
     def _on_start_failed(self, reason):
         self.lbl_status.config(text=f"Error: {reason}", fg="#EF4444")
@@ -389,8 +424,23 @@ class WeedDetectionGUI:
 
     def stop_system(self):
         self.is_running = False
+        try:
+            UDP_IP = "127.0.0.1"  # Change to Pi's IP later
+            UDP_PORT = 5005
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            payload = {"command": "ABORT"}
+            sock.sendto(json.dumps(payload).encode('utf-8'), (UDP_IP, UDP_PORT))
+            print("Abort command sent to Drone!")
+        except:
+            pass
+
         self.backend.stop()
-        self.pi.stop_sender()
+
+        def delay():
+            time.sleep(2)
+            self.pi.stop_sender()
+        threading.Thread(target=delay, daemon=True).start()
+
         self.btn_start.config(state="normal", bg="#16A34A", fg="white")
         self.btn_stop.config(state="disabled", bg="#2A2D3A", fg="#9CA3AF")
         self.lbl_status.config(text="Status: Stopped", fg="#6B7280")

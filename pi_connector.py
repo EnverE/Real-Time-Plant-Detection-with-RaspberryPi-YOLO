@@ -8,6 +8,7 @@ class PiConnector:
         self.PI_USER     = "pi"
         self.PI_PASSWORD = ""
         self.SENDER_PATH = "/home/pi/Desktop/live_test/demo_v2.py"
+        self.PILOT_PATH = "/home/pi/Desktop/live_test/pixhawk_control.py"
 
         self.client = None
 
@@ -26,12 +27,17 @@ class PiConnector:
 
             # Kill any existing sender process
             self.client.exec_command("pkill -f demo_v2.py")
+            self.client.exec_command("pkill -f pixhawk_control.py")
             time.sleep(1)
 
             # Start sender with auto-restart wrapper
             self.client.exec_command(
                     "nohup /home/pi/start_sender.sh > /home/pi/Desktop/live_test/sender.log 2>&1 &"
 
+            )
+
+            self.client.exec_command(
+                f"nohup python3 {self.PILOT_PATH} > /home/pi/Desktop/pilot.log 2>&1 &"
             )
             time.sleep(2)
             print("[SSH] Sender started on Pi.")
@@ -47,6 +53,7 @@ class PiConnector:
                 # Kill both the shell script loop and the sender itself
                 self.client.exec_command("pkill -f start_sender.sh")
                 self.client.exec_command("pkill -f demo_v2.py")
+                self.client.exec_command("pkill -f pixhawk_control.py")
                 print("[SSH] Sender stopped on Pi.")
         except Exception as e:
             print(f"[SSH] Could not stop sender: {e}")

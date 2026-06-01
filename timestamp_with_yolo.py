@@ -65,7 +65,7 @@ class Receiver:
         self._log_file = None
         self._csv_writer = None
 
-        self.device = 0
+        self.device = "0"
         print(f"Using device: {self.device}")
 
         print(f"Loading YOLO model from {self.MODEL_PATH}...")
@@ -299,9 +299,20 @@ class Receiver:
             self.pump_active_since = time.time()
             self.total_spray_activations += 1
             print(f"[PUMP] Triggered (activation #{self.total_spray_activations})")
-            # --- Future Pixhawk integration point ---
-            # from pymavlink import mavutil
-            # master.mav.command_long_send(...)
+            UDP_IP = "127.0.0.1"  # Change this to the Pi's IP address later
+            UDP_PORT = 5005
+
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                payload = {
+                    "command": "SPRAY",
+                    "duration": self.pump_duration
+                }
+                message = json.dumps(payload)
+                sock.sendto(message.encode('utf-8'), (UDP_IP, UDP_PORT))
+                print("[NET] Spray command instantly sent to Drone!")
+            except Exception as e:
+                print(f"[NET] Failed to send spray command: {e}")
 
     def trigger_pump_manual(self):
         self._trigger_pump()
