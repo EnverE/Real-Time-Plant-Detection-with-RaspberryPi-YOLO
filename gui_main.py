@@ -71,10 +71,6 @@ class WeedDetectionGUI:
                                     fg="#6B7280", font=("Segoe UI", 11, "bold"))
         self.lbl_elapsed.pack(side="right", padx=18)
 
-        self.lbl_pixhawk = tk.Label(topbar, text="Pixhawk: not connected",
-                                    bg="#13151F", fg="#F59E0B", font=("Segoe UI", 10))
-        self.lbl_pixhawk.pack(side="right", padx=12)
-
         # Notebook
         self.notebook = ttk.Notebook(self.root)
         self.notebook.pack(fill="both", expand=True, padx=0, pady=0)
@@ -368,10 +364,10 @@ class WeedDetectionGUI:
 
     def _connect_and_start(self):
         # Step 1 — SSH into Pi and launch sender
-        success = self.pi.connect_and_start()
-        if not success:
-            self.root.after(0, self._on_start_failed, "Could not reach Pi over SSH.")
-            return
+        # success = self.pi.connect_and_start()
+        # if not success:
+        #     self.root.after(0, self._on_start_failed, "Could not reach Pi over SSH.")
+        #     return
 
         # Step 2 — Start receiver on laptop
         ok = self.backend.initialize()

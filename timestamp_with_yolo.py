@@ -8,6 +8,7 @@ import torch
 from ultralytics import YOLO
 import csv
 from datetime import datetime
+import json
 
 
 class Receiver:
@@ -65,7 +66,7 @@ class Receiver:
         self._log_file = None
         self._csv_writer = None
 
-        self.device = "0"
+        self.device = "cpu"
         print(f"Using device: {self.device}")
 
         print(f"Loading YOLO model from {self.MODEL_PATH}...")
