@@ -23,7 +23,7 @@ performance charts afterwards.
 ## What's in here
 
 ```
-gui_main.py            Tkinter control centre — this is the program you run
+gui_main.py            Tkinter control center — this is the program you run
 receiver.py            Listens for the Pi, decodes frames, runs YOLO, keeps stats
 pi_connector.py        Starts/stops the sender on the Pi over SSH
 config.py              Settings loader (config.json + environment variables)
@@ -47,15 +47,15 @@ docs/                  Troubleshooting guide and Pixhawk wiring notes
 
 ## Requirements
 
-**Laptop** — Python 3.10–3.12, and a GPU if you want real-time speed.
-A CUDA GPU gives roughly 10–20 ms inference; on CPU expect 100 ms or more.
+On the laptop, Python 3.10–3.12. A CUDA GPU gives roughly 10–20 ms inference; on
+CPU expect 100 ms or more, which still works but won't keep up with a fast flight.
 
-**Raspberry Pi** — Pi 4 or newer running Raspberry Pi OS Bookworm, with a Pi Camera
-Module or a USB webcam.
+On the drone, a Pi 4 or newer running Raspberry Pi OS Bookworm, with either a Pi
+Camera Module or a USB webcam.
 
-**Wi-Fi** — any local network both machines share. The scripts assume the Windows
-hosted-network setup (laptop `192.168.137.1`, Pi `192.168.137.100`), but a normal
-router works too: just put the right addresses in `config.json`.
+For the link, any local network both machines share. The scripts assume the
+Windows hosted-network setup (laptop `192.168.137.1`, Pi `192.168.137.100`), but a
+normal router works too — just put the right addresses in `config.json`.
 
 ---
 
@@ -169,41 +169,48 @@ python tools/graph_report.py
 
 ## How it works
 
-**The link.** The Pi opens a TCP connection to the laptop, sends a 4-byte
-handshake, then one 16-byte header (`frame number`, `payload length`) plus JPEG
-bytes per frame. Frame numbers let the receiver count dropped frames. If the
-laptop isn't listening yet, or the link drops mid-flight, both sides retry — the
-Pi reconnects every 3 seconds and the laptop keeps accepting.
+### The link
 
-**Detection.** Every frame goes through `model.track(...)` with ByteTrack, so each
-plant keeps a stable ID across frames and is counted once no matter how long it
-stays in view.
+The Pi opens a TCP connection to the laptop, sends a 4-byte handshake, then one
+16-byte header (`frame number`, `payload length`) plus JPEG bytes per frame.
+Frame numbers are what let the receiver count dropped frames. If the laptop isn't
+listening yet, or the link drops mid-flight, both sides retry: the Pi reconnects
+every 3 seconds and the laptop keeps accepting.
 
-**The pump** fires when a *newly seen* plant appears and at least
-`pump.min_detections` weeds are in frame. It stays on for `pump.duration_s` and
-does not re-trigger while it is already spraying, so detections during a spray do
-not inflate the activation count. Nothing is physically actuated yet — the pump is
-a state flag plus counters. `docs/pixhawk/` holds the wiring and MAVLink notes for
-connecting real hardware; `receiver._trigger_pump()` is the hook point.
+### Detection
 
-**Metrics.** "Net delay" is the time to pull one frame off the socket, measured
-from the first byte of its header — it is transfer time on the link, not a
-clock-synchronised one-way latency. Jitter is the frame-to-frame change in that
-value. All displayed values are rolling averages over the last 10 frames; the CSV
-keeps every frame.
+Every frame goes through `model.track(...)` with ByteTrack, so each plant keeps a
+stable ID across frames and is counted once however long it stays in view.
+
+### The pump
+
+It fires when a newly seen plant appears and at least `pump.min_detections` weeds
+are in frame. It stays on for `pump.duration_s` and won't re-trigger while it is
+already spraying, so detections during a spray don't inflate the activation count.
+
+Nothing is physically actuated yet. The pump is a state flag plus counters;
+`receiver._trigger_pump()` is where a real command would go, and `docs/pixhawk/`
+has the wiring and MAVLink notes.
+
+### Metrics
+
+"Net delay" is the time to pull one frame off the socket, timed from the first
+byte of its header. That is transfer time on the link, not a clock-synchronized
+one-way latency. Jitter is the frame-to-frame change in that value. Everything on
+screen is a rolling average over the last 10 frames; the CSV keeps every frame.
 
 ---
 
 ## Known limitations
 
-- **The bundled model has one class** (`other`, trained on a tobacco dataset), so
-  the "Total crops" and "Weed ratio" figures stay at 0. They come alive if you
-  train a model with separate crop and weed classes and set `model.weed_class`.
-- **The pump is simulated.** No GPIO or MAVLink command is sent.
-- **The link is unencrypted and unauthenticated.** It is meant for an isolated
-  ad-hoc network between two machines you own, not a shared or public Wi-Fi.
-- **Area width/length in the Setup tab** are recorded in the report only; they do
-  not affect detection or coverage calculations.
+- The bundled model has one class (`other`, trained on a tobacco dataset), so
+  "Total crops" and "Weed ratio" stay at 0. Train a model with separate crop and
+  weed classes and set `model.weed_class` to make them useful.
+- The pump is simulated. No GPIO or MAVLink command is sent.
+- The link is unencrypted and unauthenticated. Use it on an isolated network
+  between two machines you own, not on shared or public Wi-Fi.
+- Area width and length in the Setup tab only show up in the report. They don't
+  affect detection or coverage.
 
 ---
 
@@ -217,12 +224,11 @@ to read the sender log on the Pi.
 
 ## License
 
-The code is released under the MIT License — see [LICENSE](LICENSE).
+The code is MIT licensed — see [LICENSE](LICENSE). Two things in here are not
+covered by it:
 
-Two things in this repository are not ours to license:
-
-- **`testData/`** — sample images from a third-party tobacco dataset (exported via
-  Roboflow). Whatever licence that dataset carries applies to those files, not MIT.
-- **`models/best5.pt`** — fine-tuned from Ultralytics YOLOv8s, which is
-  AGPL-3.0. Using it through the `ultralytics` package means the AGPL terms apply
-  to the detection stack; check them before using this commercially.
+- `testData/` holds sample images from a third-party tobacco dataset exported via
+  Roboflow. That dataset's own license applies to them, not MIT.
+- `models/best5.pt` is fine-tuned from Ultralytics YOLOv8s, which is AGPL-3.0.
+  Running it through the `ultralytics` package brings the AGPL terms with it, so
+  read them before using any of this commercially.

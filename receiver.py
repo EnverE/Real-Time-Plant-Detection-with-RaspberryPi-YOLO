@@ -380,7 +380,7 @@ class Receiver:
                     new_weeds += 1
                     print(f"[DETECTION] New weed #{track_id} (conf: {conf:.2f})")
             else:
-                # Anything the model recognises that is not the weed class is
+                # Anything the model recognizes that is not the weed class is
                 # treated as crop. The bundled model has a single class, so this
                 # stays at 0 until you train a multi-class model.
                 if track_id is not None and track_id not in self._counted_crop_ids:
@@ -414,9 +414,9 @@ class Receiver:
             (f"Pump: {'ACTIVE' if self.pump_active else 'off'}",
              (0, 255, 100) if self.pump_active else (150, 150, 150)),
         ]
-        for i, (text, colour) in enumerate(lines):
+        for i, (text, color) in enumerate(lines):
             cv2.putText(frame, text, (10, 30 + i * 32),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, colour, 2)
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
     # ------------------------------------------------------------------ pump
     def _trigger_pump(self):
