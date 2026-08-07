@@ -117,7 +117,7 @@ class Receiver:
             if self.weed_class not in known:
                 print(
                     f"[YOLO] Warning: model.weed_class '{self.weed_class}' is not one of "
-                    f"{sorted(known)} — nothing will ever be counted as a weed."
+                    f"{sorted(known)}, so nothing will ever be counted as a weed."
                 )
         except Exception as exc:
             self.model_error = f"Failed to load model: {exc}"
@@ -274,7 +274,7 @@ class Receiver:
         magic = self._recv_exact(conn, len(HANDSHAKE))
         if magic != HANDSHAKE:
             raise ValueError(
-                "handshake failed — the Pi is running an outdated sender. "
+                "handshake failed: the Pi is running an outdated sender. "
                 "Redeploy it with: python tools/deploy_pi.py"
             )
 

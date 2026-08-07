@@ -115,11 +115,11 @@ class WeedDetectionGUI:
         right = tk.Frame(outer, bg="#094218")
         right.pack(side="right", fill="both", expand=True)
 
-        # Metrics row — packed FIRST so video can't push it out
+        # Metrics row, packed FIRST so video can't push it out
         metrics = tk.Frame(right, bg="#094218")
         metrics.pack(side="bottom", fill="x", pady=(8, 0))
 
-        # Video — fills remaining space only
+        # Video fills remaining space only
         video_wrap = tk.Frame(right, bg="#000000", bd=0)
         video_wrap.pack(side="top", fill="both", expand=True)
 
@@ -141,7 +141,7 @@ class WeedDetectionGUI:
             card.pack(side="left", fill="x", expand=True, padx=(0, 6))
             tk.Label(card, text=label, bg="#1A1D27", fg="#6B7280",
                      font=("Segoe UI", 9)).pack(anchor="w", padx=10, pady=(8, 0))
-            var = tk.StringVar(value="—")
+            var = tk.StringVar(value="-")
             self.metric_vars[key] = var
             row = tk.Frame(card, bg="#1A1D27")
             row.pack(anchor="w", padx=10, pady=(0, 8))
@@ -326,7 +326,7 @@ class WeedDetectionGUI:
                      font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=14, pady=(12, 6))
             return f
 
-        def stat_row(parent, label, attr, default="—", color="#E8EAF0"):
+        def stat_row(parent, label, attr, default="-", color="#E8EAF0"):
             row = tk.Frame(parent, bg="#1A1D27")
             row.pack(fill="x", padx=14, pady=3)
             tk.Label(row, text=label, bg="#1A1D27", fg="#6B7280",
@@ -373,13 +373,13 @@ class WeedDetectionGUI:
         threading.Thread(target=self._connect_and_start, daemon=True).start()
 
     def _connect_and_start(self):
-        # Step 1 — start listening first, so the Pi has somewhere to connect to
+        # Step 1: start listening first, so the Pi has somewhere to connect to
         if not self.backend.initialize():
             self.root.after(0, self._on_start_failed,
                             f"Receiver failed to bind port {self.backend.PORT}.")
             return
 
-        # Step 2 — SSH into the Pi and launch the sender
+        # Step 2: SSH into the Pi and launch the sender
         if not self.pi.connect_and_start():
             self.backend.stop()
             self.root.after(0, self._on_start_failed,
@@ -418,7 +418,7 @@ class WeedDetectionGUI:
 
         stopped = "Status: Stopped"
         if self.backend.log_path:
-            stopped += f" — log: {self.backend.log_path.name}"
+            stopped += f" (log: {self.backend.log_path.name})"
         self.lbl_status.config(text=stopped, fg="#6B7280")
 
     def on_close(self):
@@ -485,7 +485,7 @@ class WeedDetectionGUI:
         """Worker thread: decode + scale frames, then hand them to the UI thread.
 
         Only Tkinter calls belong on the main thread, so the PhotoImage itself is
-        built in update_interface — creating it here would corrupt Tk's state.
+        built in update_interface; creating it here would corrupt Tk's state.
         """
         last_frame = None
         while self.is_running:
@@ -532,7 +532,7 @@ class WeedDetectionGUI:
         elif self.video_label.imgtk is None:
             waiting = {
                 "waiting": "Waiting for the Pi to connect...",
-                "connected": "Connected — waiting for frames...",
+                "connected": "Connected, waiting for frames...",
             }.get(stats["connection_state"], "Waiting for stream...")
             self.video_label.configure(text=waiting)
 

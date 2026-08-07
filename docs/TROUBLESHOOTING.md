@@ -39,8 +39,8 @@ The adapter may not support hosted networks:
 netsh wlan show drivers
 ```
 
-Look for `Hosted network supported : Yes`. Many modern built-in adapters say No —
-that is what the external USB Wi-Fi adapter is for. Plug it in, then re-run
+Look for `Hosted network supported : Yes`. Many modern built-in adapters say No, which
+is what the external USB Wi-Fi adapter is for. Plug it in, then re-run
 `scripts/start_hotspot.bat` as administrator.
 
 ### Laptop shows `169.254.x.x` instead of `192.168.137.1`
@@ -60,7 +60,7 @@ netsh wlan start hostednetwork
 
 ### `Could not reach pi@... / No such host`
 
-The Pi isn't on the network yet. Wait 20–30 seconds after powering it, then
+The Pi isn't on the network yet. Wait 20-30 seconds after powering it, then
 `ping 192.168.137.100`. If `netsh wlan show hostednetwork` shows 1 client but the
 ping fails, the Pi picked a different address: find it with `arp -a` and update
 `pi.host` in `config.json`.
@@ -102,7 +102,7 @@ A previous session still holds the port. Wait ~30 seconds, or change
 `laptop.listen_port` in `config.json` and re-run `tools/deploy_pi.py` so the Pi
 learns the new port.
 
-### `handshake failed — the Pi is running an outdated sender`
+### `handshake failed: the Pi is running an outdated sender`
 
 The Pi still has the old pickle-based `demo_v2.py`. Fix it with:
 
@@ -121,10 +121,10 @@ ssh <user>@192.168.137.100 tail -n 40 /home/<user>/plant-detection/sender.log
 | Message in the log | Meaning |
 |---|---|
 | `Connecting to 192.168.137.1:8080...` | Sender is alive, trying to reach the laptop |
-| `Connected.` | Working — if you still see no video, check the camera |
+| `Connected.` | Working; if you still see no video, check the camera |
 | `Laptop not listening yet` | Press Start mission on the laptop first |
 | `Network is unreachable` | Pi lost the network: `sudo nmcli con up "drone"` |
-| `No camera could be opened` | Camera not detected — see below |
+| `No camera could be opened` | Camera not detected, see below |
 
 ### `No camera could be opened`
 

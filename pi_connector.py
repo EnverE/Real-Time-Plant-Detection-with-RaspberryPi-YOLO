@@ -3,7 +3,7 @@ SSH automation for the Raspberry Pi.
 
 Starts and stops pi/sender.py on the Pi so the operator only has to press
 "Start mission" in the GUI. Credentials come from config.json / environment
-variables (see config.py) — nothing is hardcoded here.
+variables (see config.py). Nothing is hardcoded here.
 """
 
 import time
@@ -66,7 +66,7 @@ class PiConnector:
     def connect_and_start(self):
         """Connect to the Pi and launch the sender. Returns True on success."""
         if not self.auto_start:
-            print("[SSH] pi.auto_start is false — start the sender yourself.")
+            print("[SSH] pi.auto_start is false, start the sender yourself.")
             return True
 
         print(f"[SSH] Connecting to {self.user}@{self.host} ...")

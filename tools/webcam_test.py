@@ -3,7 +3,6 @@
 Try the model without a Raspberry Pi.
 
     python tools/webcam_test.py                  # laptop webcam
-    python tools/webcam_test.py --source testData  # the bundled sample images
     python tools/webcam_test.py --source clip.mp4 --conf 0.5
 
 Press q to quit the preview window.

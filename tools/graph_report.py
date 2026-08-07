@@ -151,7 +151,7 @@ def generate_graphs(df, source_file):
     stat_box(ax4, raw, unit="fps")
     set_ylim_tight(ax4, raw)
 
-    # ── 5. Pipeline breakdown bar chart — full width ──────────────────────────
+    # ── 5. Pipeline breakdown bar chart, full width ──────────────────────────
     ax5 = fig.add_subplot(gs[2, :])
     styled_ax(ax5, "Average Pipeline Breakdown", "ms")
     ax5.set_xlabel("")
@@ -181,7 +181,7 @@ def generate_graphs(df, source_file):
 # ------------------------------------------------------------------ summary
 def print_summary(df, source_file):
     print("\n" + "=" * 50)
-    print("  AgriDrone — Session Summary")
+    print("  AgriDrone Session Summary")
     print("=" * 50)
     duration = df["timestamp"].iloc[-1] - df["timestamp"].iloc[0]
     print(f"  Duration:          {duration:.1f} s ({len(df)} frames)")
@@ -212,6 +212,6 @@ if __name__ == "__main__":
     path = sys.argv[1] if len(sys.argv) > 1 else None
     df, source = load_csv(path)
     if df.empty:
-        sys.exit(f"{source} has no rows — the mission ended before any frame arrived.")
+        sys.exit(f"{source} has no rows; the mission ended before any frame arrived.")
     print_summary(df, source)
     generate_graphs(df, source)

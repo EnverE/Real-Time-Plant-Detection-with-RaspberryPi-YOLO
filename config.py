@@ -23,7 +23,7 @@ DEFAULTS = {
     "laptop": {
         "listen_host": "0.0.0.0",
         "listen_port": 8080,
-        # Address the Pi should stream to — the laptop's address on the hotspot.
+        # Address the Pi should stream to (the laptop's address on the hotspot).
         # Windows Internet Connection Sharing always uses 192.168.137.1.
         "hotspot_ip": "192.168.137.1",
     },

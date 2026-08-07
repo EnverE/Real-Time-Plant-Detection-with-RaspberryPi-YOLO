@@ -1,7 +1,7 @@
 # Pixhawk / drone control notes
 
 Reference material for connecting the Raspberry Pi to a Pixhawk flight controller.
-**None of this is wired into the detection pipeline yet** — the pump in the GUI is
+**None of this is wired into the detection pipeline yet.** The pump in the GUI is
 simulated. `receiver._trigger_pump()` is where a real actuation command would go.
 
 ## Wiring
@@ -13,7 +13,7 @@ simulated. `receiver._trigger_pump()` is where a real actuation command would go
 | GND | GND |
 
 Pin diagrams: [PiPins.png](PiPins.png), [PixhawkPins.png](PixhawkPins.png).
-The 5 V pin is not needed — the Pi runs from its own power source.
+The 5 V pin is not needed; the Pi runs from its own power source.
 
 ## Pi setup
 
@@ -28,7 +28,7 @@ Then `sudo raspi-config` → **Interface Options** → Serial Port:
 - login shell over serial: **disabled**
 - serial port hardware: **enabled**
 
-Disable Bluetooth so it stops claiming the UART — add to `/boot/config.txt`
+Disable Bluetooth so it stops claiming the UART. Add it to `/boot/config.txt`
 (`/boot/firmware/config.txt` on Bookworm):
 
 ```

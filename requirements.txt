@@ -6,7 +6,7 @@
 #   pip install torch --index-url https://download.pytorch.org/whl/cu121
 # Without it everything still runs, just on the CPU (slower inference).
 #
-# The Raspberry Pi does NOT need this file — see pi/install_pi.sh.
+# The Raspberry Pi does NOT need this file, see pi/install_pi.sh.
 
 ultralytics>=8.1,<9
 opencv-python>=4.8
