@@ -212,3 +212,17 @@ keeps every frame.
 See **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** — hosted network won't
 start, SSH failures, port already in use, low FPS, pump never triggering, and how
 to read the sender log on the Pi.
+
+---
+
+## License
+
+The code is released under the MIT License — see [LICENSE](LICENSE).
+
+Two things in this repository are not ours to license:
+
+- **`testData/`** — sample images from a third-party tobacco dataset (exported via
+  Roboflow). Whatever licence that dataset carries applies to those files, not MIT.
+- **`models/best5.pt`** — fine-tuned from Ultralytics YOLOv8s, which is
+  AGPL-3.0. Using it through the `ultralytics` package means the AGPL terms apply
+  to the detection stack; check them before using this commercially.
