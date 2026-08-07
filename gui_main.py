@@ -6,7 +6,8 @@ import cv2
 import threading
 import time
 
-from timestamp_with_yolo import Receiver
+import config
+from receiver import Receiver
 from pi_connector import PiConnector
 
 class WeedDetectionGUI:
@@ -16,14 +17,21 @@ class WeedDetectionGUI:
         self.root.geometry("1100x680")
         self.root.configure(bg="#094218")
         self.root.resizable(True, True)
-        self.pi = PiConnector()
 
-        self.backend = Receiver()
+        self.cfg = config.load_config()
+        self.pi = PiConnector(self.cfg)
+        self.backend = Receiver(self.cfg)
+
         self.is_running = False
         self.working_time = None
 
         self.setup_styles()
         self.build_layout()
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+
+        if self.backend.model is None:
+            self.lbl_status.config(text="Model not loaded", fg="#EF4444")
+            messagebox.showerror("Model not loaded", self.backend.model_error)
 
     # ------------------------------------------------------------------ styles
     def setup_styles(self):
@@ -118,6 +126,7 @@ class WeedDetectionGUI:
         self.video_label = tk.Label(video_wrap, text="Waiting for stream...",
                                     bg="#0A0A0F", fg="#2A2D3A",
                                     font=("Segoe UI", 14))
+        self.video_label.imgtk = None       # holds a reference to the live frame
         self.video_label.pack(fill="both", expand=True)
 
         self.metric_vars = {}
@@ -191,7 +200,7 @@ class WeedDetectionGUI:
         tk.Label(mode_row, text="Mode", bg="#1A1D27", fg="#6B7280",
                  font=("Segoe UI", 10)).pack(side="left")
 
-        self.pump_mode_var = tk.StringVar(value="auto")
+        self.pump_mode_var = tk.StringVar(value=self.cfg["pump"]["mode"])
         for val, txt in [("auto", "Auto"), ("manual", "Manual")]:
             tk.Radiobutton(mode_row, text=txt, variable=self.pump_mode_var,
                            value=val, bg="#1A1D27", fg="#9CA3AF",
@@ -207,8 +216,9 @@ class WeedDetectionGUI:
         thresh_top.pack(fill="x")
         tk.Label(thresh_top, text="Min detections to spray",
                  bg="#1A1D27", fg="#6B7280", font=("Segoe UI", 10)).pack(side="left")
-        self.lbl_threshold = tk.Label(thresh_top, text="1", bg="#1A1D27",
-                                      fg="#E8EAF0", font=("Segoe UI", 10, "bold"))
+        self.lbl_threshold = tk.Label(thresh_top, text=str(self.backend.spray_threshold),
+                                      bg="#1A1D27", fg="#E8EAF0",
+                                      font=("Segoe UI", 10, "bold"))
         self.lbl_threshold.pack(side="right")
 
         self.threshold_slider = tk.Scale(self.threshold_frame, from_=1, to=10,
@@ -217,7 +227,7 @@ class WeedDetectionGUI:
                                          highlightthickness=0, bd=0,
                                          showvalue=False, cursor="hand2",
                                          command=self._on_threshold_change)
-        self.threshold_slider.set(1)
+        self.threshold_slider.set(self.backend.spray_threshold)
         self.threshold_slider.pack(fill="x", pady=(2, 0))
 
         # Manual spray button
@@ -290,7 +300,8 @@ class WeedDetectionGUI:
                                         troughcolor="#2A2D3A", highlightthickness=0,
                                         bd=0, showvalue=False, cursor="hand2",
                                         command=self._on_duration_change)
-        self.duration_slider.set(2.0)
+        self.duration_slider.set(self.backend.pump_duration)
+        self.lbl_duration.config(text=f"{self.backend.pump_duration:.1f} s")
         self.duration_slider.pack(side="left", fill="x", expand=True)
 
         tk.Button(container, text="Save settings", bg="#2563EB", fg="white",
@@ -341,7 +352,7 @@ class WeedDetectionGUI:
         c3 = col("Spray stats")
         stat_row(c3, "Activations",   "stat_sprays", "0")
         stat_row(c3, "Est. chem used","stat_chem",   "0.0 L")
-        stat_row(c3, "Pump duration", "stat_dur",    "2.0 s")
+        stat_row(c3, "Pump duration", "stat_dur",    f"{self.backend.pump_duration:.1f} s")
         tk.Frame(c3, bg="#1A1D27", height=12).pack()
 
         # Report button
@@ -353,22 +364,26 @@ class WeedDetectionGUI:
 
     # ------------------------------------------------------------------ actions
     def start_system(self):
-        self.lbl_status.config(text="Connecting to Pi...", fg="#F59E0B")
+        if self.backend.model is None:
+            messagebox.showerror("Model not loaded", self.backend.model_error)
+            return
+        self.lbl_status.config(text="Starting receiver...", fg="#F59E0B")
         self.btn_start.config(state="disabled")
         self.root.update()
         threading.Thread(target=self._connect_and_start, daemon=True).start()
 
     def _connect_and_start(self):
-        # Step 1 — SSH into Pi and launch sender
-        success = self.pi.connect_and_start()
-        if not success:
-            self.root.after(0, self._on_start_failed, "Could not reach Pi over SSH.")
+        # Step 1 — start listening first, so the Pi has somewhere to connect to
+        if not self.backend.initialize():
+            self.root.after(0, self._on_start_failed,
+                            f"Receiver failed to bind port {self.backend.PORT}.")
             return
 
-        # Step 2 — Start receiver on laptop
-        ok = self.backend.initialize()
-        if not ok:
-            self.root.after(0, self._on_start_failed, "Receiver failed to initialize.")
+        # Step 2 — SSH into the Pi and launch the sender
+        if not self.pi.connect_and_start():
+            self.backend.stop()
+            self.root.after(0, self._on_start_failed,
+                            self.pi.last_error or "Could not reach the Pi over SSH.")
             return
 
         self.root.after(0, self._on_start_success)
@@ -380,12 +395,15 @@ class WeedDetectionGUI:
         self.btn_start.config(bg="#374151", fg="#6B7280")
         self.lbl_status.config(text="Status: Live", fg="#22C55E")
         self.lbl_topstatus.config(text="● Live", fg="#22C55E")
+        if self.pump_mode_var.get() == "manual":
+            self.btn_spray.config(state="normal")
         threading.Thread(target=self.video_loop, daemon=True).start()
         self._tick_elapsed()
 
     def _on_start_failed(self, reason):
-        self.lbl_status.config(text=f"Error: {reason}", fg="#EF4444")
+        self.lbl_status.config(text="Status: Failed", fg="#EF4444")
         self.btn_start.config(state="normal", bg="#16A34A", fg="white")
+        messagebox.showerror("Could not start the mission", reason)
 
     def stop_system(self):
         self.is_running = False
@@ -393,24 +411,37 @@ class WeedDetectionGUI:
         self.pi.stop_sender()
         self.btn_start.config(state="normal", bg="#16A34A", fg="white")
         self.btn_stop.config(state="disabled", bg="#2A2D3A", fg="#9CA3AF")
-        self.lbl_status.config(text="Status: Stopped", fg="#6B7280")
+        self.btn_spray.config(state="disabled")
         self.lbl_topstatus.config(text="● Idle", fg="#6B7280")
+        self.video_label.config(image="", text="Stream stopped")
+        self.video_label.imgtk = None
+
+        stopped = "Status: Stopped"
+        if self.backend.log_path:
+            stopped += f" — log: {self.backend.log_path.name}"
+        self.lbl_status.config(text=stopped, fg="#6B7280")
+
+    def on_close(self):
+        """Stop the Pi sender before the window disappears."""
+        if self.is_running:
+            self.stop_system()
+        self.root.destroy()
 
     def save_setup(self):
-        w = self.entry_width.get()
-        l = self.entry_length.get()
+        w = self.entry_width.get().strip().replace(",", ".")
+        l = self.entry_length.get().strip().replace(",", ".")
         if not w or not l:
             messagebox.showerror("Error", "Width and length cannot be empty.")
             return
         try:
-            if int(w) <= 0 or int(l) <= 0:
+            if float(w) <= 0 or float(l) <= 0:
                 raise ValueError
         except ValueError:
             messagebox.showerror("Error", "Please enter valid positive numbers.")
             return
 
-        self.stat_width.config(text=f"{w} m")
-        self.stat_length.config(text=f"{l} m")
+        self.stat_width.config(text=f"{float(w):g} m")
+        self.stat_length.config(text=f"{float(l):g} m")
         messagebox.showinfo("Saved", "Settings saved successfully.")
 
     def _on_mode_change(self):
@@ -451,32 +482,59 @@ class WeedDetectionGUI:
 
     # ------------------------------------------------------------------ video loop
     def video_loop(self):
+        """Worker thread: decode + scale frames, then hand them to the UI thread.
+
+        Only Tkinter calls belong on the main thread, so the PhotoImage itself is
+        built in update_interface — creating it here would corrupt Tk's state.
+        """
+        last_frame = None
         while self.is_running:
-            frame, count = self.backend.get_frame()
+            frame, _ = self.backend.get_frame()
             stats = self.backend.get_stats()
 
-            if frame is not None:
-                cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            if not self.backend.is_running:
+                self.root.after(0, self._on_backend_died)
+                return
 
-                # Fit frame to video label size
-                lw = self.video_label.winfo_width()
-                lh = self.video_label.winfo_height()
-                if lw > 10 and lh > 10:
-                    fh, fw = cv2image.shape[:2]
-                    scale = min(lw / fw, lh / fh)
-                    nw, nh = int(fw * scale), int(fh * scale)
-                    cv2image = cv2.resize(cv2image, (nw, nh))
-
-                img = Image.fromarray(cv2image)
-                imgtk = ImageTk.PhotoImage(image=img)
-                self.root.after(0, self.update_interface, imgtk, stats)
-            else:
+            if frame is None or frame is last_frame:
+                self.root.after(0, self.update_interface, None, stats)
                 time.sleep(0.05)
+                continue
 
-    def update_interface(self, imgtk, stats):
+            last_frame = frame
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+            # Fit frame to video label size
+            lw = self.video_label.winfo_width()
+            lh = self.video_label.winfo_height()
+            if lw > 10 and lh > 10:
+                fh, fw = rgb.shape[:2]
+                scale = min(lw / fw, lh / fh)
+                rgb = cv2.resize(rgb, (int(fw * scale), int(fh * scale)))
+
+            self.root.after(0, self.update_interface, Image.fromarray(rgb), stats)
+            time.sleep(0.01)
+
+    def _on_backend_died(self):
+        if self.is_running:
+            self.stop_system()
+            messagebox.showwarning(
+                "Stream lost",
+                "The receiver stopped. Check the terminal output and the Pi's "
+                "sender log for the reason.")
+
+    def update_interface(self, img, stats):
         # Video
-        self.video_label.imgtk = imgtk
-        self.video_label.configure(image=imgtk, text="")
+        if img is not None:
+            imgtk = ImageTk.PhotoImage(image=img)
+            self.video_label.imgtk = imgtk          # keep a reference alive
+            self.video_label.configure(image=imgtk, text="")
+        elif self.video_label.imgtk is None:
+            waiting = {
+                "waiting": "Waiting for the Pi to connect...",
+                "connected": "Connected — waiting for frames...",
+            }.get(stats["connection_state"], "Waiting for stream...")
+            self.video_label.configure(text=waiting)
 
         # Metric cards
         self.metric_vars["network_delay_ms"].set(f"{stats['network_delay_ms']:.0f}")
@@ -507,8 +565,12 @@ class WeedDetectionGUI:
         self.stat_crops.config(text=str(tc))
         self.stat_ratio.config(text=ratio)
         self.stat_sprays.config(text=str(stats["spray_activations"]))
-        self.stat_chem.config(text=f"{stats['spray_activations'] * 0.05:.2f} L")
+        self.stat_chem.config(text=f"{self._chem_used(stats):.2f} L")
         self.stat_pump_mode.config(text=stats["pump_mode"].capitalize())
+
+    def _chem_used(self, stats):
+        """Rough chemical estimate: litres per activation x activations."""
+        return stats["spray_activations"] * self.cfg["pump"]["litres_per_activation"]
 
     # ------------------------------------------------------------------ report
     def create_report(self):
@@ -525,7 +587,7 @@ class WeedDetectionGUI:
         tc = stats["total_crops"]
         ratio = f"{(tw / (tw + tc) * 100):.1f}%" if (tw + tc) > 0 else "0%"
 
-        content = f"""AgriDrone — Weed Detection Report
+        content = f"""AgriDrone - Weed Detection Report
 Generated: {datetime.now().strftime("%d-%m-%Y %H:%M")}
 
 --- Mission Status ---
@@ -541,11 +603,18 @@ Weed ratio:      {ratio}
 
 --- Spray Stats ---
 Pump activations:       {stats["spray_activations"]}
-Estimated chemical:     {stats["spray_activations"] * 0.05:.2f} L
+Estimated chemical:     {self._chem_used(stats):.2f} L
 Pump on-duration:       {self.backend.pump_duration:.1f} s
+
+--- Link Quality ---
+Frames received:        {stats["frames_received"]}
+Frames dropped:         {stats["frames_dropped"]} ({stats["packet_loss_pct"]:.2f}%)
+Network delay avg:      {stats["net_avg"]:.1f} ms (min {stats["net_min"]:.1f} / max {stats["net_max"]:.1f})
+YOLO inference avg:     {stats["yolo_avg"]:.1f} ms
+FPS avg:                {stats["fps_avg"]:.1f}
 """
         try:
-            with open(filepath, "w") as f:
+            with open(filepath, "w", encoding="utf-8") as f:
                 f.write(content)
             messagebox.showinfo("Saved", f"Report saved to {filepath}")
         except Exception as e:

@@ -1,0 +1,23 @@
+# Local configuration (contains the Pi password / host)
+config.json
+
+# Session output
+logs/
+runs/
+*_graphs.png
+test_log_*.csv
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

@@ -1,0 +1,38 @@
+{
+  "laptop": {
+    "listen_host": "0.0.0.0",
+    "listen_port": 8080,
+    "hotspot_ip": "192.168.137.1"
+  },
+  "model": {
+    "path": "models/best5.pt",
+    "confidence": 0.7,
+    "weed_class": "other",
+    "device": "auto",
+    "tracker": "bytetrack.yaml"
+  },
+  "pump": {
+    "mode": "auto",
+    "duration_s": 2.0,
+    "min_detections": 1,
+    "litres_per_activation": 0.05
+  },
+  "pi": {
+    "host": "192.168.137.100",
+    "port": 22,
+    "user": "pi",
+    "password": "",
+    "key_file": "",
+    "remote_dir": "/home/pi/plant-detection",
+    "auto_start": true
+  },
+  "camera": {
+    "width": 640,
+    "height": 480,
+    "fps": 30,
+    "jpeg_quality": 80
+  },
+  "logging": {
+    "csv_dir": "logs"
+  }
+}

@@ -1,0 +1,17 @@
+# Laptop / ground-station dependencies.
+#   pip install -r requirements.txt
+#
+# Torch is pulled in by ultralytics. For NVIDIA GPU acceleration install the
+# CUDA build first, following https://pytorch.org/get-started/locally/ , e.g.
+#   pip install torch --index-url https://download.pytorch.org/whl/cu121
+# Without it everything still runs, just on the CPU (slower inference).
+#
+# The Raspberry Pi does NOT need this file — see pi/install_pi.sh.
+
+ultralytics>=8.1,<9
+opencv-python>=4.8
+numpy>=1.24
+pillow>=10.0
+paramiko>=3.4
+pandas>=2.0
+matplotlib>=3.7
