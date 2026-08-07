@@ -6,12 +6,12 @@ only counted once, and triggers a (simulated) spray pump when a new one appears.
 No internet connection is needed in the field.
 
 ```
-Raspberry Pi + camera            Laptop
-┌──────────────────┐  Wi-Fi   ┌────────────────────────────┐
+Raspberry Pi + camera         Laptop
+┌──────────────────┐  Wi-Fi   ┌─────────────────────────────┐
 │ pi/sender.py     │ ───────► │ receiver.py  → YOLO + track │
 │ JPEG @ 640x480   │  TCP     │ gui_main.py  → live UI      │
 └──────────────────┘  :8080   │ logs/*.csv   → metrics      │
-                               └────────────────────────────┘
+                              └─────────────────────────────┘
 ```
 
 The GUI shows the annotated video plus network delay, jitter, inference time, FPS,
@@ -66,7 +66,13 @@ The fastest way to check that the model and your install work:
 ```bash
 git clone https://github.com/EnverE/Real-Time-Plant-Detection-with-RaspberryPi-YOLO.git
 cd Real-Time-Plant-Detection-with-RaspberryPi-YOLO
-python -m venv .venv && .venv\Scripts\activate
+python -m venv .venv
+```
+
+Activate it — `.venv\Scripts\activate` on Windows, `source .venv/bin/activate` on
+macOS/Linux — then:
+
+```bash
 pip install -r requirements.txt
 python tools/webcam_test.py --source testData
 ```
@@ -81,7 +87,8 @@ webcam. Press `q` to close the preview.
 ### 1. Configure
 
 ```bash
-copy config.example.json config.json
+copy config.example.json config.json     :: Windows
+cp config.example.json config.json       #  macOS / Linux
 ```
 
 Then edit `config.json` — at minimum the `pi` section:
